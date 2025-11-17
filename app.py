@@ -33,7 +33,7 @@ def load_models():
     eff_model.eval()
 
     # Load YOLOv11n model
-    yolo_model = YOLO("yolo11n.pt")  # You provided this file
+    yolo_model = YOLO("yolo11n.pt")  # Your given YOLO model file
 
     return eff_model, yolo_model
 
@@ -60,7 +60,7 @@ def preprocess_image(img):
 
 
 # ----------------------------------------------------
-# UPLOAD IMAGE
+# FILE UPLOAD
 # ----------------------------------------------------
 uploaded_file = st.file_uploader("📤 Upload Image (JPG/PNG)", type=["jpg", "jpeg", "png"])
 
@@ -74,20 +74,20 @@ if uploaded_file is not None:
     st.subheader("🔍 YOLO Lesion Detection")
     results = yolo_model(img)
 
-    # Convert result to image with bounding boxes
-    result_img = results[0].plot()  # YOLO auto draws boxes
+    # Auto draw bounding boxes
+    result_img = results[0].plot()
     st.image(result_img, caption="Detected Lesions", use_container_width=True)
 
-    # If YOLO found no boxes → direct classification
+    # If YOLO detects nothing → classify full image
     if len(results[0].boxes) == 0:
         st.warning("⚠ No lesion detected by YOLO. Running classification on full image.")
         lesion_crop = img
     else:
-        # Take first detected lesion
+        # Take first detected box
         box = results[0].boxes[0]
-        x1, y1, x2, y2 = map(int, box.xyxy[0].numpy())
+        x1, y1, x2, y2 = map(int, box.xyxy[0].cpu().numpy())
 
-        # Crop detected lesion
+        # Crop lesion region
         np_img = np.array(img)
         lesion_crop = Image.fromarray(np_img[y1:y2, x1:x2])
 
@@ -113,7 +113,7 @@ if uploaded_file is not None:
     st.write(f"### 🔢 Confidence: **{confidence:.2f}%**")
     st.progress(confidence / 100)
 
-    # Breakdown table
+    # Probability Breakdown
     st.subheader("📊 Probability Breakdown")
     for i, p in enumerate(probs):
         st.write(f"**{idx_to_class[str(i)].upper()}** → {p * 100:.2f}%")
