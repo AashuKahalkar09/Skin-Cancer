@@ -4,10 +4,10 @@ import timm
 from torchvision import transforms
 from PIL import Image
 import json
-import cv2
 import numpy as np
 import torch.nn.functional as F
 from ultralytics import YOLO
+
 
 # ----------------------------------------------------
 # PAGE CONFIG
@@ -117,3 +117,4 @@ if uploaded_file is not None:
     st.subheader("📊 Probability Breakdown")
     for i, p in enumerate(probs):
         st.write(f"**{idx_to_class[str(i)].upper()}** → {p * 100:.2f}%")
+
