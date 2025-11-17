@@ -26,6 +26,7 @@ st.write("### Upload a skin lesion image to detect possible cancer type.")
 def load_model():
     model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=7)
     model.load_state_dict(torch.load("model.pth", map_location="cpu"))
+    model.load_state_dict(torch.load("yolo11n.pt", map_location="cpu")) 
     model.eval()
     return model
 
@@ -89,3 +90,4 @@ if uploaded_file is not None:
     st.subheader("📊 Probability Breakdown")
     for i, prob in enumerate(probabilities):
         st.write(f"**{idx_to_class[str(i)].upper()}** → {prob * 100:.2f}%")
+
