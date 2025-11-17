@@ -6,43 +6,40 @@ from PIL import Image
 import json
 import torch.nn.functional as F
 
-# ----------------------------------------------------
+# -----------------------------------------
 # PAGE CONFIG
-# ----------------------------------------------------
-st.set_page_config(page_title="Skin Cancer Detection", page_icon="🩺")
-
-st.markdown(
-    "<h1 style='text-align: center;'>🩺 Skin Cancer Detection (EfficientNet-B0)</h1>",
-    unsafe_allow_html=True
+# -----------------------------------------
+st.set_page_config(
+    page_title="Skin Cancer Detection",
+    page_icon="🩺",
+    layout="centered"
 )
 
-st.write("### Upload a skin lesion image for classification.")
+st.markdown("<h1 style='text-align: center;'>🩺 Skin Cancer Detection (EfficientNet-B0 - TIMM)</h1>", 
+            unsafe_allow_html=True)
+st.write("### Upload a skin lesion image to detect possible cancer type.")
 
-
-# ----------------------------------------------------
-# LOAD MODEL (Guaranteed Working)
-# ----------------------------------------------------
+# -----------------------------------------
+# LOAD MODEL (TIMM version)
+# -----------------------------------------
 @st.cache_resource
 def load_model():
     model = timm.create_model("efficientnet_b0", pretrained=False, num_classes=7)
-    state_dict = torch.load("model.pth", map_location="cpu")
-    model.load_state_dict(state_dict)
+    model.load_state_dict(torch.load("model.pth", map_location="cpu"))
     model.eval()
     return model
 
 model = load_model()
 
-
-# ----------------------------------------------------
+# -----------------------------------------
 # LOAD LABELS
-# ----------------------------------------------------
+# -----------------------------------------
 with open("labels.json", "r") as f:
     idx_to_class = json.load(f)
 
-
-# ----------------------------------------------------
-# PREPROCESS FUNCTION
-# ----------------------------------------------------
+# -----------------------------------------
+# PREPROCESS
+# -----------------------------------------
 def preprocess_image(img):
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -50,39 +47,45 @@ def preprocess_image(img):
     ])
     return transform(img).unsqueeze(0)
 
+# -----------------------------------------
+# SIDEBAR
+# -----------------------------------------
+st.sidebar.header("Navigation")
+st.sidebar.info("This tool uses EfficientNet-B0 (TIMM) to classify skin lesions.")
+st.sidebar.write("**Model:** EfficientNet-B0 (timm)")  
+st.sidebar.write("**Classes:** 7 HAM10000 categories")  
 
-# ----------------------------------------------------
+# -----------------------------------------
 # FILE UPLOAD
-# ----------------------------------------------------
-uploaded_file = st.file_uploader(
-    "📤 Upload Image (JPG/PNG)", type=["jpg", "jpeg", "png"]
-)
+# -----------------------------------------
+uploaded_file = st.file_uploader("📤 Upload Image (JPG/PNG)", 
+                                 type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-    img = Image.open(uploaded_file).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+    image = Image.open(uploaded_file).convert("RGB")
 
-    img_tensor = preprocess_image(img)
+    st.image(image, caption="Uploaded Image", 
+             use_container_width=True)
 
-    # ------------------------------------------------
-    # PREDICTION
-    # ------------------------------------------------
-    with st.spinner("🔍 Classifying..."):
+    img_tensor = preprocess_image(image)
+
+    with st.spinner("🔍 Predicting..."):
         outputs = model(img_tensor)
-        probs = F.softmax(outputs, dim=1).detach().numpy()[0]
+        probabilities = F.softmax(outputs, dim=1).detach().numpy()[0]
+        predicted_class = int(torch.argmax(outputs, 1))
+        classname = idx_to_class[str(predicted_class)]
+        confidence = probabilities[predicted_class] * 100
 
-        pred_idx = int(torch.argmax(outputs, 1))
-        pred_label = idx_to_class[str(pred_idx)]
-        confidence = probs[pred_idx] * 100
-
-    # ------------------------------------------------
-    # RESULT
-    # ------------------------------------------------
-    st.success(f"### 🧬 Prediction: **{pred_label.upper()}**")
+    # -----------------------------------------
+    # RESULT DISPLAY
+    # -----------------------------------------
+    st.success(f"## 🧬 Prediction: **{classname.upper()}**")
     st.write(f"### 🔢 Confidence: **{confidence:.2f}%**")
-    st.progress(confidence / 100)
 
-    # Probability Breakdown
+    # Confidence bar
+    st.progress(float(confidence / 100))
+
+    # Probability Table
     st.subheader("📊 Probability Breakdown")
-    for i, p in enumerate(probs):
-        st.write(f"**{idx_to_class[str(i)].upper()}** → {p * 100:.2f}%")
+    for i, prob in enumerate(probabilities):
+        st.write(f"**{idx_to_class[str(i)].upper()}** → {prob * 100:.2f}%")
